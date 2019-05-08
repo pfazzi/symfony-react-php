@@ -1,0 +1,36 @@
+<?php
+
+require dirname(__DIR__).'/vendor/autoload.php';
+
+$loop = React\EventLoop\Factory::create();
+
+use App\Kernel;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
+use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
+use Symfony\Component\Debug\Debug;
+
+require dirname(__DIR__).'/config/bootstrap.php';
+
+umask(0000);
+Debug::enable();
+
+$httpFoundationFactory = new HttpFoundationFactory();
+$psr17Factory = new Psr17Factory();
+$psrHttpFactory = new PsrHttpFactory($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
+
+$server = new React\Http\Server(function (Psr\Http\Message\ServerRequestInterface $request) use ($httpFoundationFactory, $psrHttpFactory) {
+    $kernel = new Kernel('dev', true);
+    $request = $httpFoundationFactory->createRequest($request);
+    $response = $kernel->handle($request);
+    $toBeSent = $psrHttpFactory->createResponse($response);
+    $kernel->terminate($request, $response);
+    return $toBeSent;
+});
+
+$socket = new React\Socket\Server($port = 8081, $loop);
+$server->listen($socket);
+
+echo "Server running at http://127.0.0.1:$port\n";
+
+$loop->run();
